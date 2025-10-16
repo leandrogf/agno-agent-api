@@ -1,6 +1,6 @@
 # agent-api/agents/knowledge_builder_definitions.py
 
-from agno.agent import Assistant
+from agno.agent import Agent
 from pydantic import BaseModel, Field
 from typing import List
 
@@ -89,7 +89,7 @@ INSTRUCTIONS_FOR_BATCH_PROCESSING = [
 # ====================================================================
 # 3. INSTANCIAÇÃO DO ASSISTENTE
 # ====================================================================
-batch_analysis_assistant = Assistant(
+batch_analysis_agent = Agent(
     name="batch_knowledge_builder_specialist",
     role="Analista de Suporte Técnico Sênior",
     description="Especialista em processar lotes de dossiês de chamados e extrair conhecimento estruturado em formato JSON.",

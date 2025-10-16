@@ -4,7 +4,8 @@ import time
 import json
 from uuid import UUID
 # Importa o especialista em análise de lote que definimos
-from agents.knowledge_builder_definitions import batch_analysis_assistant
+from agents.knowledge_builder_definitions import batch_analysis_agent
+
 # Importa os repositórios, nossa única camada de acesso a dados
 from repositories.chamados_repository import ChamadosRepository
 from repositories.knowledge_repository import KnowledgeRepository
