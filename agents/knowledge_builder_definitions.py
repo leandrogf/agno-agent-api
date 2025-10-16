@@ -1,19 +1,16 @@
 # agent-api/agents/knowledge_builder_definitions.py
 
-from agno.assistant import Assistant
+from agno.agent import Assistant
 from pydantic import BaseModel, Field
 from typing import List
 
 # ====================================================================
 # 1. MODELOS DE DADOS (PYDANTIC)
-# Mapeiam para as colunas da tabela `ybs_knowledge_base`.
-# Esta é a parte mais CRÍTICA para garantir a qualidade da saída da LLM.
 # ====================================================================
 
 class KnowledgeRecord(BaseModel):
     """
     Modelo Pydantic para um único registro de conhecimento.
-    Define a estrutura JSON exata que a LLM deve gerar para cada chamado.
     """
     ticket_id: int = Field(
         description="O ID do chamado original (sisateg_chamados.cod_chamado)."
@@ -58,14 +55,11 @@ class KnowledgeRecord(BaseModel):
 class KnowledgeBatch(BaseModel):
     """
     Modelo Pydantic para um lote de registros de conhecimento.
-    Informa à LLM que a saída final deve ser um objeto JSON com uma chave 'records'
-    contendo uma lista dos itens definidos em KnowledgeRecord.
     """
     records: List[KnowledgeRecord]
 
 # ====================================================================
 # 2. ENGENHARIA DE PROMPT
-# Tradução da sua especificação para uma lista de instruções.
 # ====================================================================
 
 MISSION = "Analisar uma LISTA de dossiês de chamados RESOLVIDOS e, para CADA um, extrair a essência do problema e da solução, criando uma lista de registros de conhecimento concisos, anônimos e reutilizáveis."
@@ -94,7 +88,6 @@ INSTRUCTIONS_FOR_BATCH_PROCESSING = [
 
 # ====================================================================
 # 3. INSTANCIAÇÃO DO ASSISTENTE
-# Este é o "cérebro" que o nosso batch_processor irá invocar.
 # ====================================================================
 batch_analysis_assistant = Assistant(
     name="batch_knowledge_builder_specialist",
@@ -102,9 +95,7 @@ batch_analysis_assistant = Assistant(
     description="Especialista em processar lotes de dossiês de chamados e extrair conhecimento estruturado em formato JSON.",
     instructions=INSTRUCTIONS_FOR_BATCH_PROCESSING,
     llm="gemini-pro",
-    # A mágica que força a saída estruturada:
     output_model=KnowledgeBatch,
-    # Este especialista não interage com o mundo externo, apenas transforma dados.
     tools=False,
     debug_mode=True
 )
