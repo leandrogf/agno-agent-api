@@ -77,9 +77,6 @@ yfinance==0.2.59
 
 # --- DEPENDÊNCIAS ADICIONADAS PARA A NOVA ARQUITETURA ---
 
-# Essencial para a camada de repositórios e acesso ao banco de dados
-SQLAlchemy==2.0.30
-
 # Driver Python para conectar com o banco de dados PostgreSQL
 psycopg2-binary==2.9.9
 
