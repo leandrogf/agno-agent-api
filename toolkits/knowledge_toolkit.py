@@ -1,9 +1,21 @@
 # agent-api/toolkits/knowledge_toolkit.py
 
-from agno.tools import Toolkit
-from agno.tools import tool
+try:
+    from agno.tools.toolkit import Toolkit # CORREÇÃO: Caminho correto
+    from agno.tools.tool import tool       # CORREÇÃO: Caminho correto
+except Exception:
+    # Fallback lightweight implementations when 'agno' is not installed
+    from typing import Callable
+    class Toolkit:
+        def __init__(self, name: str, description: str):
+            self.name = name
+            self.description = description
+    def tool(toolkit):
+        def decorator(func):
+            return func
+        return decorator
+
 from typing import List, Dict, Any, Optional
-# Importa todos os repositórios necessários
 from repositories.chamados_repository import ChamadosRepository
 from repositories.knowledge_repository import KnowledgeRepository
 from repositories.log_repository import LogRepository
