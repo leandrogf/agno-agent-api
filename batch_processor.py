@@ -62,7 +62,7 @@ def main():
                 dossiers_data = chamados_repo.generate_dossiers_for_tickets(ticket_ids_batch)
 
                 llm_input = json.dumps([item['dossier_text'] for item in dossiers_data])
-                analysis_result = batch_analysis_assistant.run(input=llm_input)
+                analysis_result = batch_analysis_agent.run(input=llm_input)
                 knowledge_records = analysis_result.records
 
                 if len(knowledge_records) != len(dossiers_data):
