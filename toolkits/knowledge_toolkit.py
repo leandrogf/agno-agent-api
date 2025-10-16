@@ -1,6 +1,7 @@
 # agent-api/toolkits/knowledge_toolkit.py
 
-from agno import Toolkit, tool
+from agno.toolkit import Toolkit
+from agno.tool import tool
 from typing import List, Dict, Any, Optional
 # Importa todos os repositórios necessários
 from repositories.chamados_repository import ChamadosRepository

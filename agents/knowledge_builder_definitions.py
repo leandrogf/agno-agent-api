@@ -1,6 +1,6 @@
 # agent-api/agents/knowledge_builder_definitions.py
 
-from agno import Assistant
+from agno.assistant import Assistant
 from pydantic import BaseModel, Field
 from typing import List
 
