@@ -24,7 +24,7 @@ class ChamadosRepository(BaseRepository):
         """
         Gera os dossiês para uma lista de chamados usando a função do banco.
         """
-        query = "SELECT cod_chamado, dossie FROM fn_gera_dossie_chamado_para_lista(ARRAY[:ticket_ids])"
+        query = "SELECT cod_chamado, dossie_markdown_completo as dossie FROM fn_gera_dossie_chamado(ARRAY[:ticket_ids])"
         results = self.execute(query, {"ticket_ids": ticket_ids})
         return [{"ticket_id": row['cod_chamado'], "dossier_text": row['dossie']} for row in results]
 

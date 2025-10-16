@@ -1,5 +1,5 @@
 # agent-api/batch_processor.py
-
+from dotenv import load_dotenv
 import time
 import json
 from uuid import UUID
@@ -10,6 +10,9 @@ from agents.knowledge_builder_definitions import batch_analysis_agent
 from repositories.chamados_repository import ChamadosRepository
 from repositories.knowledge_repository import KnowledgeRepository
 from repositories.log_repository import LogRepository
+
+# Carrega as variáveis de ambiente do arquivo .env
+load_dotenv()
 
 def main():
     """
@@ -35,7 +38,7 @@ def main():
 
     try:
         # --- 2. CRIAÇÃO DO JOB DE LOG ---
-        initial_tickets = chamados_repo.get_unprocessed_tickets(limit=5000)
+        initial_tickets = chamados_repo.get_unprocessed_tickets(limit=1)
         if not initial_tickets:
             print("🏁 Nenhum chamado para processar. Encerrando.")
             return

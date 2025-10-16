@@ -23,7 +23,7 @@ class BaseRepository:
             db_name = os.getenv("POSTGRES_DB")  # A variável que aponta para 'directus_db'
 
             # O nome do host é o nome do serviço Docker, e a porta é a interna do contêiner
-            db_host = "postgres-senar"
+            db_host = "localhost"
             db_port = "5432"
 
             # Validação para garantir que todas as variáveis necessárias estão presentes
