@@ -117,7 +117,7 @@ def parse_agent_response(raw_result, job_id):
 
     # Valida cada registro retornado
     for record in content['records']:
-        required_fields = ['title', 'problem_summary', 'tags']
+        required_fields = ['ticket_id', 'title', 'problem_summary', 'tags']
         missing_fields = [f for f in required_fields if f not in record]
         if missing_fields:
             raise ValueError(f"Campos obrigatórios faltando no registro: {missing_fields}")
@@ -138,7 +138,14 @@ def process_batch(batch_analysis_agent, chamados_repo, knowledge_repo, log_repo,
             raise ValueError("Nenhum dossiê foi gerado para os chamados selecionados")
 
         # Fase 2: Preparação dos dados para o LLM
-        llm_input = json.dumps([item['dossier_text'] for item in dossiers_data])
+        # Prepara o input incluindo ticket_id e texto do dossiê
+        input_data = []
+        for item in dossiers_data:
+            input_data.append({
+                "ticket_id": item['ticket_id'],
+                "dossier_text": item['dossier_text']
+            })
+        llm_input = json.dumps(input_data)
         input_size = len(llm_input)
         print(f"🔍 Enviando para análise: {input_size:,} caracteres")
         if input_size < 10:
@@ -209,29 +216,47 @@ def process_batch(batch_analysis_agent, chamados_repo, knowledge_repo, log_repo,
         if not knowledge_records:
             raise ValueError("Lista de registros vazia")
 
-        if len(knowledge_records) != len(dossiers_data):
-            raise ValueError(f"Inconsistência de contagem. Entrada: {len(dossiers_data)}, Saída: {len(knowledge_records)}")
+        if len(knowledge_records) < len(dossiers_data):
+            print(f"\n⚠️ Aviso: Nem todos os chamados foram analisados.")
+            print(f"   → Entrada: {len(dossiers_data)} chamados")
+            print(f"   → Saída: {len(knowledge_records)} registros")
+            print(f"   → {len(dossiers_data) - len(knowledge_records)} chamados serão processados na próxima execução")
 
-        print(f"\n✅ Análise concluída com sucesso!")
+        print(f"\n✅ Análise concluída!")
         print(f"   → {len(knowledge_records)} registros gerados")
 
         # Fase 5: Persistência dos resultados
         # Adiciona ticket_id a cada registro e converte para modelos Pydantic
         from agents.knowledge_builder_definitions import KnowledgeRecord
         knowledge_to_save = []
-        for record, dossier in zip(knowledge_records, dossiers_data):
+        # Cria um mapa de ticket_id para dossier para lookup rápido
+        dossier_map = {str(d['ticket_id']): d for d in dossiers_data}
+
+        for record in knowledge_records:
+            # Usa o ticket_id que já deve estar no record (garantido pelo parser)
+            ticket_id = str(record.get('ticket_id'))
+            if not ticket_id or ticket_id not in dossier_map:
+                print(f"\n⚠️ Aviso: Record sem ticket_id válido ou ticket_id não encontrado nos dossiês: {record}")
+                continue
+
             model_dict = record.copy()  # Cria uma cópia do dicionário para não modificar o original
+            # Não sobrescrevemos o ticket_id pois ele já deve estar correto
             model_dict.update({
-                'ticket_id': dossier['ticket_id'],  # Adiciona ticket_id
                 'llm_model': 'gemini-2.0-flash',    # Adiciona modelo usado
                 'processing_version': 1             # Adiciona versão do processamento
             })
             knowledge_record = KnowledgeRecord(**model_dict)
             knowledge_to_save.append(knowledge_record.model_dump())
+        # Salva os registros processados
+        if knowledge_to_save:
             saved_ids = knowledge_repo.save_batch(knowledge_to_save)
             id_map = {item['ticket_id']: saved_id for item, saved_id in zip(knowledge_to_save, saved_ids)}
-            chamados_repo.mark_tickets_as_processed([item['ticket_id'] for item in knowledge_to_save])
 
+            # Marca apenas os tickets que foram processados com sucesso
+            processed_ticket_ids = [item['ticket_id'] for item in knowledge_to_save]
+            chamados_repo.mark_tickets_as_processed(processed_ticket_ids)
+
+            # Registra os sucessos
             for item in knowledge_to_save:
                 ticket_id = item['ticket_id']
                 duration = int((time.time() - batch_start_time) * 1000 / len(ticket_ids_batch))
@@ -243,7 +268,18 @@ def process_batch(batch_analysis_agent, chamados_repo, knowledge_repo, log_repo,
                     "error_message": None
                 })
 
-            return len(knowledge_records), 0, log_entries
+            # Registra os não processados
+            unprocessed_ticket_ids = set(d['ticket_id'] for d in dossiers_data) - set(processed_ticket_ids)
+            for ticket_id in unprocessed_ticket_ids:
+                log_entries.append({
+                    "ticket_id": ticket_id,
+                    "knowledge_base_id": None,
+                    "status": "PENDING",
+                    "duration_ms": 0,
+                    "error_message": "Chamado não processado neste lote"
+                })
+
+        return len(knowledge_records), 0, log_entries
 
     except Exception as e:
         error_msg = f"Erro no processamento do lote: {str(e)}"
@@ -289,7 +325,7 @@ def main():
 
     try:
         # Verificação inicial de tickets
-        initial_tickets = chamados_repo.get_unprocessed_tickets(limit=1)
+        initial_tickets = chamados_repo.get_unprocessed_tickets(limit=MAX_TICKETS if MAX_TICKETS else None)
         if not initial_tickets:
             print("🏁 Nenhum chamado para processar. Encerrando.")
             return
@@ -321,7 +357,7 @@ def main():
 
             total_succeeded += succeeded
             total_failed += failed
-            count_processed += 1
+            count_processed += len(ticket_ids_batch) # Incrementa baseado no tamanho do lote
 
             # Registra os resultados do lote
             with safe_db_operation():

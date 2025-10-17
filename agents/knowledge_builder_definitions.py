@@ -89,6 +89,7 @@ INSTRUCTIONS_FOR_BATCH_PROCESSING = [
     "# FORMATO DE SAÍDA (EXEMPLO)",
     """{
   "records": [{
+    "ticket_id": 123456,
     "title": "Erro de acesso ao relatório financeiro",
     "problem_summary": "O usuário não consegue visualizar o relatório financeiro mensal no módulo de gestão",
     "root_cause_analysis": "Permissão VIEW_FINANCIAL_REPORTS não estava atribuída ao papel do usuário",
@@ -101,7 +102,12 @@ INSTRUCTIONS_FOR_BATCH_PROCESSING = [
 }""",
 
     "# REGRAS DE EXTRAÇÃO",
-    "1. TÍTULO (OBRIGATÓRIO):",
+    "1. TICKET_ID (OBRIGATÓRIO):",
+    "   - Extraia o cod_chamado do dossiê e use como ticket_id",
+    "   - O ticket_id estará sempre presente no texto como 'cod_chamado: [número]'",
+    "   - CRÍTICO: Este número DEVE ser extraído exatamente como aparece",
+
+    "2. TÍTULO (OBRIGATÓRIO):",
     "   - Título curto e genérico do problema (1 frase)",
     "   - Foque no tipo de problema, não nos detalhes específicos",
     "   - Ex: 'Erro de permissão ao acessar relatório'",
@@ -142,8 +148,15 @@ INSTRUCTIONS_FOR_BATCH_PROCESSING = [
     "   - 3: Complexo (mudança de código/banco)",
 
     "# REGRAS CRÍTICAS",
-    "1. ANONIMIZAÇÃO:",
-    "   - NUNCA inclua nomes de pessoas, emails ou identificadores",
+    "1. IDENTIFICAÇÃO:",
+    "   - O ticket_id DEVE ser o cod_chamado encontrado no texto",
+    "   - SEMPRE extraia e mantenha o ticket_id no registro de saída",
+    "   - CRÍTICO: O ticket_id deve ser exatamente o mesmo número do cod_chamado",
+    "   - Cada registro DEVE ter o ticket_id correspondente ao seu chamado",
+    "   - NUNCA invente ou altere o ticket_id",
+
+    "2. ANONIMIZAÇÃO:",
+    "   - NUNCA inclua nomes de pessoas, emails ou outros identificadores",
     "   - NUNCA exponha credenciais ou senhas",
     "   - Use termos genéricos: 'o usuário', 'o sistema', etc",
 
@@ -179,7 +192,7 @@ batch_analysis_agent = Agent(
     ],
     model=Gemini(id="gemini-2.0-flash"),
     tools=False,
-    debug_mode=True,          # Habilita logs detalhados
+    debug_mode=False,          # Habilita logs detalhados
     markdown=False,           # Desabilita formatação markdown para garantir JSON puro
 
 )
