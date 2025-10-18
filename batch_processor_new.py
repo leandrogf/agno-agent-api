@@ -310,8 +310,8 @@ def main():
     log_repo = LogRepository()
 
     # Parâmetros de execução
-    BATCH_SIZE = 10  # Processa 10 chamados por vez
-    MAX_TICKETS = 10  # Limite de chamados a processar (para testes)
+    BATCH_SIZE = 50  # Processa 10 chamados por vez
+    MAX_TICKETS = 50  # Limite de chamados a processar (para testes)
     count_processed = 0
 
     print("\n🔧 Configuração:")

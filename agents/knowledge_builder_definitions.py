@@ -192,7 +192,7 @@ batch_analysis_agent = Agent(
     ],
     model=Gemini(id="gemini-2.0-flash"),
     tools=False,
-    debug_mode=False,          # Habilita logs detalhados
+    debug_mode=True,          # Habilita logs detalhados
     markdown=False,           # Desabilita formatação markdown para garantir JSON puro
 
 )
