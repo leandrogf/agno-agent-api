@@ -4,9 +4,13 @@ import time
 import asyncio
 import os
 import traceback
+import warnings
 from uuid import UUID
 from contextlib import contextmanager
 from typing import List, Dict, Any, Tuple
+
+# Configuração para suprimir avisos específicos
+warnings.filterwarnings('ignore', message='Contents DB not found for knowledge base')
 
 # Importa as classes Agno para Knowledge Base e Embeddings
 from agno.knowledge.knowledge import Knowledge
@@ -19,11 +23,22 @@ from repositories.log_repository import LogRepository, JOB_TYPE_VECTORIZATION # 
 
 # Importa o gerenciador de arquivos temporários
 from tempfiles import TempFileManager
+import psutil
+import threading
 
 # Carrega as variáveis de ambiente do arquivo .env
 # IMPORTANTE: load_dotenv() buscará o .env na pasta de onde você RODA o script,
 # ou você pode especificar o caminho ex: load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 load_dotenv()
+
+def monitor_memory(stop_event, interval=5):
+    """Monitora o uso de memória do processo atual."""
+    process = psutil.Process()
+    while not stop_event.is_set():
+        mem_info = process.memory_info()
+        mem_usage_mb = mem_info.rss / 1024 / 1024  # Converte para MB
+        print(f"\n🔍 Uso de memória atual: {mem_usage_mb:.1f} MB")
+        time.sleep(interval)
 
 # --- Configurações ---
 # --- AJUSTE PARA EXECUÇÃO LOCAL ---
@@ -225,13 +240,22 @@ def main():
     knowledge_repo = KnowledgeRepository()
     log_repo = LogRepository()
 
-    # Parâmetros (mantidos do original)
-    MAX_RECORDS = 100 # Limite para testes (None para todos)
+    # Parâmetros ajustados para processamento completo
+    MAX_RECORDS = None # Processa todos os registros
     count_processed = 0 # Contará os IDs processados (tentados)
 
     print("\n🔧 Configuração:")
     print(f"   → Tamanho do lote: {BATCH_SIZE}")
     print(f"   → Limite de registros: {MAX_RECORDS if MAX_RECORDS else 'Sem limite'}")
+    
+    # Inicia o monitoramento de memória em uma thread separada
+    stop_monitoring = threading.Event()
+    memory_monitor = threading.Thread(
+        target=monitor_memory,
+        args=(stop_monitoring,),
+        daemon=True
+    )
+    memory_monitor.start()
 
     total_succeeded = 0
     total_failed = 0
@@ -246,10 +270,35 @@ def main():
             raise ValueError("Erro: Variável de ambiente GOOGLE_API_KEY não definida.")
         embedder = GeminiEmbedder(id=EMBEDDER_MODEL_ID)
 
+        # Configuração mais detalhada do LanceDB
+        import lancedb
+
+        # Estabelece conexão com o LanceDB
+        connection = lancedb.connect(VECTOR_DB_PATH)
+
+        # Verifica se a tabela existe, se não, cria
+        table = None
+        try:
+            table = connection.open_table(VECTOR_TABLE_NAME)
+            print(f"   → Tabela '{VECTOR_TABLE_NAME}' encontrada.")
+        except Exception as e:
+            print(f"   → Criando nova tabela '{VECTOR_TABLE_NAME}'...")
+            # Schema mínimo para o LanceDB
+            schema = {
+                "vector": "vector",
+                "text": "string",
+                "metadata": "json"
+            }
+            table = connection.create_table(VECTOR_TABLE_NAME, schema=schema)
+
+        # Inicializa o LanceDB com a tabela pré-configurada
         vector_db = LanceDb(
             uri=VECTOR_DB_PATH,
             table_name=VECTOR_TABLE_NAME,
-            embedder=embedder
+            embedder=embedder,
+            table=table,
+            connection=connection,
+            use_tantivy=True  # Habilita indexação de texto completo
         )
         knowledge_base_agno = Knowledge(vector_db=vector_db)
         print("   → Embedder e Vector DB configurados.")
@@ -376,6 +425,11 @@ def main():
         if knowledge_repo: knowledge_repo.close()
         if log_repo: log_repo.close()
         temp_manager.cleanup()
+        # Para o monitoramento de memória
+        if 'stop_monitoring' in locals():
+            stop_monitoring.set()
+            memory_monitor.join()
+
         loop.close() # Fecha o event loop principal
         print("\nConexões com banco de dados fechadas e arquivos temporários limpos.")
         print("="*60)
