@@ -55,3 +55,12 @@ class BaseRepository:
         except exc.SQLAlchemyError as e:
             print(f"DATABASE ERROR executing query: {e}")
             raise
+
+    def close(self):
+        """
+        Fecha a conexão com o banco de dados e limpa os recursos.
+        """
+        if BaseRepository._engine:
+            BaseRepository._engine.dispose()
+            BaseRepository._engine = None
+            print("Connection closed and resources disposed.")

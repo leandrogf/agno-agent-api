@@ -49,9 +49,18 @@ def parse_agent_response(raw_result, job_id):
 
     with open(debug_file, 'w', encoding='utf-8') as f:
         if hasattr(raw_result, 'content'):
-            f.write(raw_result.content)
+            content = raw_result.content.strip()
+            # Remove markdown delimitadores se presentes
+            if content.startswith('```'):
+                parts = content.split('```')
+                if len(parts) >= 3:
+                    content = parts[1]
+                    if content.startswith('json'):
+                        content = content[4:]
+                    content = content.strip()
+            f.write(content)
         else:
-            json.dump(raw_result, f, ensure_ascii=False, indent=2)
+            json.dump(raw_result, f, ensure_ascii=False, separators=(',', ':'))
 
     print(f"\n💾 Resposta bruta salva em: {debug_file}")
 
@@ -89,7 +98,7 @@ def parse_agent_response(raw_result, job_id):
                         print("   → Removendo prefixo 'json'")
                         clean_content = clean_content[4:]
                     clean_content = clean_content.strip()
-                    print(f"\n   → Conteúdo limpo: \n{clean_content}")
+                    # print(f"\n   → Conteúdo limpo: \n{clean_content}")
                 else:
                     print("\n❌ Erro: Formato markdown inválido")
                     raise ValueError("Formato markdown inválido")
@@ -310,8 +319,8 @@ def main():
     log_repo = LogRepository()
 
     # Parâmetros de execução
-    BATCH_SIZE = 50  # Processa 10 chamados por vez
-    MAX_TICKETS = 50  # Limite de chamados a processar (para testes)
+    BATCH_SIZE = 5  # Processa 20 chamados por vez
+    MAX_TICKETS = None  # Limite de chamados a processar (para testes)
     count_processed = 0
 
     print("\n🔧 Configuração:")

@@ -31,3 +31,4 @@ dist
 venv*
 
 __TEMP__
+lancedb_data

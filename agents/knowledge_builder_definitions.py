@@ -35,9 +35,8 @@ class KnowledgeRecord(BaseModel):
         default=None,
         description="Descrição clara e técnica da solução implementada."
     )
-    solution_type: str | None = Field(
-        default=None,
-        description="Categoria da solução (ex: Script SQL, User Guidance, Configuration)."
+    solution_type: str = Field(
+        description="Categoria da solução em português. SEMPRE deve ser preenchido com um destes valores: 'Correção de Banco', 'Orientação ao Usuário', 'Configuração de Sistema', 'Suporte Técnico' ou 'Procedimento Manual'. Usar 'Correção de Banco' quando houver scripts SQL, 'Orientação ao Usuário' para instruções ao usuário, 'Configuração de Sistema' para ajustes de configuração, 'Suporte Técnico' para problemas resolvidos sem alteração de banco, e 'Procedimento Manual' quando necessária intervenção manual."
     )
     sql_template: List[str] = Field(
         default_factory=list,
@@ -86,20 +85,8 @@ INSTRUCTIONS_FOR_BATCH_PROCESSING = [
     "# OBJETIVO",
     f"Sua missão é: {MISSION}",
 
-    "# FORMATO DE SAÍDA (EXEMPLO)",
-    """{
-  "records": [{
-    "ticket_id": 123456,
-    "title": "Erro de acesso ao relatório financeiro",
-    "problem_summary": "O usuário não consegue visualizar o relatório financeiro mensal no módulo de gestão",
-    "root_cause_analysis": "Permissão VIEW_FINANCIAL_REPORTS não estava atribuída ao papel do usuário",
-    "solution_applied": "Adicionada a permissão VIEW_FINANCIAL_REPORTS ao papel do usuário via painel administrativo",
-    "solution_type": "Permission Update",
-    "sql_template": [],
-    "tags": ["permissão", "relatório", "acesso", "papel-usuário"],
-    "ticket_level": 1
-  }]
-}""",
+    "# FORMATO DE SAÍDA (EXEMPLO COMPACTO)",
+    """{"records":[{"ticket_id":123456,"title":"Erro de acesso ao relatório financeiro","problem_summary":"O usuário não consegue visualizar o relatório financeiro mensal no módulo de gestão","root_cause_analysis":"Permissão VIEW_FINANCIAL_REPORTS não estava atribuída ao papel do usuário","solution_applied":"Adicionada a permissão VIEW_FINANCIAL_REPORTS ao papel do usuário via painel administrativo","solution_type":"Permission Update","sql_template":[],"tags":["permissão","relatório","acesso","papel-usuário"],"ticket_level":1}]}""",
 
     "# REGRAS DE EXTRAÇÃO",
     "1. TICKET_ID (OBRIGATÓRIO):",
@@ -177,22 +164,39 @@ INSTRUCTIONS_FOR_BATCH_PROCESSING = [
 batch_analysis_agent = Agent(
     name="batch_knowledge_builder_specialist",
     role="Analista de Suporte Técnico Sênior",
-    description="Especialista em processar lotes de dossiês de chamados e extrair conhecimento estruturado em formato JSON.",
+    description="Especialista em processar lotes de dossiês de chamados e extrair conhecimento estruturado em formato JSON puro e compacto.",
     instructions=[
         "CRÍTICO - FORMATO DE RESPOSTA:",
-        "- RETORNE APENAS O JSON PURO",
+        "- RETORNE APENAS O JSON PURO SEM QUALQUER FORMATAÇÃO",
         "- NUNCA USE MARKDOWN ```json ou ```",
+        "- NÃO USE ESPAÇOS OU QUEBRAS DE LINHA DESNECESSÁRIAS",
+        "- NÃO USE IDENTAÇÃO OU FORMATAÇÃO BONITA",
         "- A resposta deve começar DIRETAMENTE com { ",
         "- A resposta deve terminar DIRETAMENTE com }",
-        "- NENHUM outro caractere antes ou depois",
+        "- NENHUM caractere extra antes, depois ou entre os elementos",
         "- ERRADO: ```json { ... } ```",
         "- ERRADO: ```{ ... }```",
-        "- CERTO: { ... }",
+        "- ERRADO: {\n  \"records\": [...]\n}",
+        "- CERTO: {\"records\":[...]}",
+        "- SEMPRE USE O FORMATO MAIS COMPACTO POSSÍVEL",
+
+        "CRÍTICO - CAMPO SOLUTION_TYPE:",
+        "- SEMPRE preencher o campo solution_type",
+        "- SEMPRE usar um dos seguintes valores em português:",
+        "  * 'Correção de Banco' - quando envolve scripts SQL ou alterações no banco",
+        "  * 'Orientação ao Usuário' - quando a solução foi orientar ou instruir o usuário",
+        "  * 'Configuração de Sistema' - quando envolve ajustes de configuração",
+        "  * 'Suporte Técnico' - quando problema foi resolvido sem alteração de banco",
+        "  * 'Procedimento Manual' - quando necessária intervenção manual",
+        "- NUNCA deixar solution_type nulo ou vazio",
+        "- NUNCA usar valores diferentes dos listados acima",
+        "- NUNCA usar termos em inglês",
+
         *INSTRUCTIONS_FOR_BATCH_PROCESSING
     ],
     model=Gemini(id="gemini-2.0-flash"),
     tools=False,
-    debug_mode=True,          # Habilita logs detalhados
+    debug_mode=False,          # Habilita logs detalhados
     markdown=False,           # Desabilita formatação markdown para garantir JSON puro
 
 )

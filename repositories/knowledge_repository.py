@@ -2,11 +2,30 @@
 
 from .base_repository import BaseRepository
 from typing import List, Dict, Any
-
+from uuid import UUID
 class KnowledgeRepository(BaseRepository):
     """
     Repository for managing all operations related to the ybs_knowledge_base table.
     """
+
+    def get_all_knowledge_ids(self) -> List[UUID]:
+        """
+        Retorna todos os IDs da knowledge base ordenados por ticket_id.
+        """
+        query = """
+            SELECT id
+            FROM public.ybs_knowledge_base
+            ORDER BY ticket_id;
+        """
+        results = self.execute(query)
+        return [row['id'] for row in results]
+
+    def close(self):
+        """
+        Fecha a conexão com o banco de dados.
+        """
+        if hasattr(self, '_session'):
+            self._session.close()
     def save_batch(self, knowledge_batch: List[Dict[str, Any]]) -> List[str]:
         """
         Inserts or updates a batch of knowledge records into the database.
@@ -45,3 +64,35 @@ class KnowledgeRepository(BaseRepository):
         # which SQLAlchemy interprets as a batch insert (executemany).
         results = self.execute(query, knowledge_batch)
         return [row['id'] for row in results]
+
+    def get_formatted_knowledge_for_vectorization(self, knowledge_ids: List[UUID]) -> List[Dict[str, Any]]:
+        """
+        Busca o texto formatado para vetorização para uma lista de IDs de conhecimento
+        usando a função do banco de dados.
+        """
+        if not knowledge_ids:
+            return []
+
+        # Converte UUIDs para strings se a biblioteca de DB preferir,
+        # mas passar como lista de UUIDs para :knowledge_ids deve funcionar com psycopg3/sqlalchemy
+        query = """
+            SELECT
+                knowledge_id,
+                ticket_id,
+                knowledge_text
+            FROM
+                public.fn_gera_texto_conhecimento_para_vetorizacao(ARRAY[:knowledge_ids])
+        """
+
+        # Passa a lista de UUIDs como parâmetro
+        results = self.execute(query, {"knowledge_ids": knowledge_ids})
+
+        # Retorna uma lista de dicionários prontos para o processo de embedding
+        return [
+            {
+                "knowledge_id": row['knowledge_id'], # UUID
+                "ticket_id": row['ticket_id'],     # int
+                "text_to_embed": row['knowledge_text'] # str
+            }
+            for row in results
+        ]

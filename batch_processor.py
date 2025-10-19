@@ -50,7 +50,7 @@ def main():
             return
 
         tickets_found = len(initial_tickets)
-        job_id = log_repo.create_job(tickets_found=tickets_found, batch_size=BATCH_SIZE)
+        job_id = log_repo.create_job(tickets_found=tickets_found, batch_size=BATCH_SIZE, job_type='knowledge')
         c = 0
         # --- 3. LOOP DE PROCESSAMENTO EM LOTES ---
         while True or count_processed == 1:
