@@ -8,7 +8,7 @@ import os
 from contextlib import contextmanager
 
 # Importa o especialista em análise de lote que definimos
-from agents.knowledge_builder_definitions import batch_analysis_agent
+from agents.knowledge_builder import batch_analysis_agent
 
 # Importa os repositórios, nossa única camada de acesso a dados
 from repositories.chamados_repository import ChamadosRepository
@@ -236,7 +236,7 @@ def process_batch(batch_analysis_agent, chamados_repo, knowledge_repo, log_repo,
 
         # Fase 5: Persistência dos resultados
         # Adiciona ticket_id a cada registro e converte para modelos Pydantic
-        from agents.knowledge_builder_definitions import KnowledgeRecord
+        from agents.knowledge_builder import KnowledgeRecord
         knowledge_to_save = []
         # Cria um mapa de ticket_id para dossier para lookup rápido
         dossier_map = {str(d['ticket_id']): d for d in dossiers_data}
