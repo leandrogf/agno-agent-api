@@ -1,7 +1,7 @@
 # agent-api/repositories/chamados_repository.py
 
 from .base_repository import BaseRepository
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 class ChamadosRepository(BaseRepository):
     """
@@ -40,3 +40,23 @@ class ChamadosRepository(BaseRepository):
             WHERE cod_chamado = ANY(:ticket_ids);
         """
         self.execute(query, {"ticket_ids": ticket_ids})
+
+    def get_ticket_details_by_id(self, ticket_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Busca detalhes básicos de um chamado específico pelo seu cod_chamado.
+        """
+        query = """
+            SELECT
+                cod_chamado,
+                dsc_titulo,
+                dsc_mensagem,
+                dat_inclusao,
+                cod_situacao_chamado
+                -- Adicione outros campos se forem úteis
+            FROM public.sisateg_chamados
+            WHERE cod_chamado = :ticket_id
+            LIMIT 1;
+        """
+        params = {"ticket_id": ticket_id}
+        results = self.execute(query, params)
+        return results[0] if results else None

@@ -20,24 +20,25 @@ class ResolutionPlan(BaseModel):
     warnings: Optional[str] = Field(None, description="Alertas sobre potenciais riscos ou efeitos colaterais da ação.")
 
 # Instruções Específicas
-n3_mission = "Receber um diagnóstico do N2 e propor um plano de resolução estruturado."
+n3_mission = "Formular um plano de resolução técnico (ResolutionPlan JSON) baseado no diagnóstico do N2."
 n3_specific_instructions = [
     f"# MISSÃO PRINCIPAL: {n3_mission}",
-    "# PERFIL DO AGENTE: Você é um 'Desenvolvedor Sênior', focado em soluções seguras e eficazes.",
-    "# CONTEXTO RECEBIDO: Você receberá o relatório de diagnóstico do N2.",
+    "# PERFIL DO AGENTE: Você é um 'Engenheiro de Soluções', focado em criar planos de ação.",
+    "# CONTEXTO RECEBIDO: O histórico conterá o diagnóstico do N2.",
     "# FERRAMENTAS DISPONÍVEIS:",
-    "  - `get_knowledge_record_by_uuid`: Use SE o diagnóstico mencionar um `knowledge_id` (UUID) para buscar detalhes, como o `sql_template`.",
+    "  - `get_knowledge_record_by_uuid`: Use SE o N2 recomendou buscar um `knowledge_id` (UUID).",
     "# FLUXO DE TRABALHO / REGRAS DE EXECUÇÃO:",
-    "  - DEVE FAZER: Analise o diagnóstico do N2.",
-    "  - ÀS VEZES DEVE FAZER (Condição: Se N2 mencionou um `knowledge_id`): Use a ferramenta `get_knowledge_record_by_uuid` para buscar o registro.",
-    "  - DEVE FAZER: Formule o plano de ação no formato `ResolutionPlan`. Preencha `sql_script` se a ferramenta retornou um `sql_template`.",
-    "  - DEVE FAZER: Garanta que `requires_human_approval` seja `True`.",
+    "  - DEVE FAZER: Analise o `diagnostic_summary` e `investigation_details_md` do N2.",
+    "  - ÀS VEZES DEVE FAZER (Condição: Se N2 mencionou `knowledge_id`): Use `get_knowledge_record_by_uuid` para buscar o `sql_template`.",
+    "  - DEVE FAZER: Crie o plano de ação no formato `ResolutionPlan`. Preencha `sql_script` se aplicável.",
+    "  - DEVE FAZER: Garanta `requires_human_approval` = `True`.",
     "# REGRAS DE NÃO FAZER:",
-    "  - NÃO execute ações, apenas proponha.",
-    "  - NÃO faça diagnóstico, confie no N2.",
+    "  - NÃO interaja diretamente com o usuário.",
+    "  - NÃO execute ações, apenas crie o plano.",
+    "  - NÃO faça diagnóstico.",
     "# FORMATO DE SAÍDA OBRIGATÓRIO (JSON):",
     "  - Sua saída deve ser um JSON que siga EXATAMENTE a estrutura do modelo `ResolutionPlan`.",
-    "  - Exemplo (texto descritivo): {\"action_type\": \"Execução de Script SQL\", \"description\": \"Executar o script para corrigir X.\", \"sql_script\": \"UPDATE ... WHERE ...\", \"requires_human_approval\": true, \"warnings\": \"Fazer backup antes.\"}" # Descrição textual
+    "  - Exemplo: {\"action_type\": \"Execução de Script SQL\", ..., \"requires_human_approval\": true, ...}"
 ]
 
 # Concatenar Todas as Instruções
@@ -51,8 +52,8 @@ n3_full_instructions = (
 # Criar o Agente
 n3_agent = Agent(
     name="N3_ResolutionAgent",
-    description="Especialista Nível 3. Propõe planos de ação e scripts SQL.",
-    role="Desenvolvedor Sênior",
+    description="Formula planos de resolução técnicos.",
+    role="Engenheiro de Soluções",
     instructions=n3_full_instructions,
     model=Gemini(id="gemini-2.0-flash"),
     knowledge=None,

@@ -104,3 +104,25 @@ def search_knowledge_by_keyword(search_terms: str) -> str:
         return json.dumps(results, default=str)
     else:
         return json.dumps({"results": [], "message": f"Nenhum resultado encontrado para '{search_terms}'"})
+
+@tool
+def get_ticket_details(ticket_id: int) -> str:
+    """
+    (PARA AGENTE TRIAGE) Use esta ferramenta quando o usuário fornecer um
+    NÚMERO de chamado existente para buscar os detalhes dele (dossiê completo).
+    Isso ajuda a confirmar o problema e obter contexto.
+
+    Args:
+        ticket_id (int): O ID numérico do chamado a ser buscado.
+    """
+    print(f"--- [TOOL]: get_ticket_details (usando generate_dossiers) (ID: {ticket_id}) ---")
+
+    # --- ALTERAÇÃO AQUI: Reutiliza generate_dossiers_for_tickets ---
+    details_list = chamados_repo.generate_dossiers_for_tickets([ticket_id])
+    # --- FIM DA ALTERAÇÃO ---
+
+    if details_list:
+        # Retorna o primeiro (e único) dossiê encontrado
+        return json.dumps(details_list[0], default=str)
+    else:
+        return json.dumps({"error": f"Nenhum chamado/dossiê encontrado com o ID {ticket_id}"})

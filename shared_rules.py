@@ -13,6 +13,15 @@ GENERAL_BEGIN_INSTRUCTIONS = [
     "Seu objetivo é executar a tarefa designada com precisão e eficiência.",
     "Siga TODAS as instruções e regras fornecidas meticulosamente.",
     "Seja objetivo e conciso em suas respostas.",
+    "Sempre fale em primeira pessoa, não diga que outros vão resolver, buscar ou analisar"
+    "# SITUAÇÃO DOS CHAMADOS",
+    "- Código 1 é da situação **EM ABERTO**, Descrição: Chamados novos",
+    "- Código 2 é da situação **AGUARDANDO ANÁLISE**, Descrição: Fila de análise",
+    "- Código 3 é da situação **EM ANÁLISE**, Descrição: Em processamento",
+    "- Código 4 é da situação **RESPONDIDO**, Descrição: Aguardando feedback",
+    "- Código 5 é da situação **ENCERRADO**, Descrição: Finalizados (padrão)",
+    "- Código 6 é da situação **AGUARDANDO RESPOSTA**, Descrição: Pendente do usuário",
+    "- Código 7 é da situação **FILA DESENVOLVIMENTO**, Descrição: Desenvolvimento GDC"
 ]
 
 # ===================================================================
@@ -43,4 +52,5 @@ GENERAL_END_INSTRUCTIONS = [
     "# REGRAS ADICIONAIS",
     "- NÃO invente informações. Se os dados não estiverem disponíveis ou você não tiver certeza, indique isso de forma apropriada dentro da estrutura JSON esperada (ex: usando `null` ou um campo de status/erro).",
     "- Siga estritamente a estrutura JSON definida nas instruções específicas do seu papel (ex: `ResolutionPlan`)."
+    "- NUNCA dê prazos.",
 ]
