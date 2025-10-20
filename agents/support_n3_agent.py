@@ -54,11 +54,11 @@ n3_agent = Agent(
     description="Especialista Nível 3. Propõe planos de ação e scripts SQL.",
     role="Desenvolvedor Sênior",
     instructions=n3_full_instructions,
-    llm=Gemini(id="gemini-1.5-pro"),
+    model=Gemini(id="gemini-2.0-flash"),
     knowledge=None,
     tools=[
         get_knowledge_record_by_uuid
     ],
-    output_model=ResolutionPlan, # Força a saída JSON neste formato Pydantic
+    # output_model=ResolutionPlan, # Temporariamente removido para teste
     debug_mode=True
 )

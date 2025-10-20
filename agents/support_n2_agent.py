@@ -54,7 +54,7 @@ n2_agent = Agent(
     description="Detetive Nível 2. Diagnostica problemas usando RAG e ferramentas.",
     role="Analista de Sistemas Sênior",
     instructions=n2_full_instructions,
-    llm=Gemini(id="gemini-1.5-pro"),
+    model=Gemini(id="gemini-2.0-flash"),
     knowledge=[sisateg_kb],
     # (Futuro: knowledge=[sisateg_kb, docs_kb])
     tools=[

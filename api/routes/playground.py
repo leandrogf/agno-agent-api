@@ -1,4 +1,4 @@
-from agno.playground import Playground
+# from agno.playground import Playground  # Temporariamente comentado
 from typing import List, Union, Dict
 
 # --- 1. Importações dos Agentes de Exemplo (Mantidas) ---
@@ -8,13 +8,13 @@ try:
     from agents.finance_agent import get_finance_agent
     # Removi web_agent pois não estava no seu tree.txt, mas adicione se necessário
     # from agents.web_agent import get_web_agent
-    example_agents_available = True
+    example_agents_available = False
 except ImportError:
     print("Playground: AVISO - Não foi possível importar os agentes de exemplo (agno_assist, finance_agent).")
     example_agents_available = False
 
 # --- 2. Importação do NOSSO Registro de Agentes/Equipe ---
-from core.agent_registry import AGENT_REGISTRY
+# from core.agent_registry import AGENT_REGISTRY  # Temporariamente comentado
 from agno.agent import Agent
 from agno.team import Team
 
@@ -43,29 +43,34 @@ if example_agents_available:
         print(f"Playground: ERRO ao carregar agentes de exemplo: {e}")
 
 # Carrega NOSSOS Agentes e Equipe do Registry
-our_service_names: List[str] = AGENT_REGISTRY.get_available_services()
-for service_name in our_service_names:
-    if service_name not in loaded_service_names: # Evita adicionar duplicatas se houver sobreposição
-        service_instance = AGENT_REGISTRY.get_service(service_name)
-        if service_instance:
-            # Assumimos que debug_mode já foi definido na criação da instância
-            all_services_for_playground.append(service_instance)
-            loaded_service_names.append(service_name)
-            print(f"Playground: Adicionando nosso serviço '{service_name}'")
-        else:
-            print(f"Playground: AVISO - Nosso serviço '{service_name}' não encontrado no registry.")
+# Temporariamente comentado para evitar erros de importação
+# our_service_names: List[str] = AGENT_REGISTRY.get_available_services()
+# for service_name in our_service_names:
+#     if service_name not in loaded_service_names: # Evita adicionar duplicatas se houver sobreposição
+#         service_instance = AGENT_REGISTRY.get_service(service_name)
+#         if service_instance:
+#             # Assumimos que debug_mode já foi definido na criação da instância
+#             all_services_for_playground.append(service_instance)
+#             loaded_service_names.append(service_name)
+#             print(f"Playground: Adicionando nosso serviço '{service_name}'")
+#         else:
+#             print(f"Playground: AVISO - Nosso serviço '{service_name}' não encontrado no registry.")
 
 if not all_services_for_playground:
-    print("Playground: ERRO - Nenhum agente ou equipe encontrado para servir no playground!")
-    # Criar um playground vazio pode causar erros na UI, melhor parar ou ter um fallback
-    raise RuntimeError("Nenhum serviço (Agente/Equipe) pôde ser carregado para o Playground.")
+    print("Playground: AVISO - Nenhum agente ou equipe encontrado para servir no playground!")
+    # Temporariamente, ao invés de falhar, vamos criar uma lista vazia
+    # raise RuntimeError("Nenhum serviço (Agente/Equipe) pôde ser carregado para o Playground.")
 
 # --- 4. Criar a Instância do Playground ---
 # Passa a lista COMBINADA de instâncias para o Playground
-playground = Playground(agents=all_services_for_playground)
+# playground = Playground(agents=all_services_for_playground)  # Temporariamente comentado
 
 # --- 5. Obter o Roteador FastAPI ---
 # O Playground gera automaticamente os endpoints necessários (/playground/*)
-playground_router = playground.get_async_router()
+# playground_router = playground.get_async_router()  # Temporariamente comentado
+
+# Criando um router vazio temporariamente
+from fastapi import APIRouter
+playground_router = APIRouter()
 
 print(f"--- Playground Router Configurado com {len(all_services_for_playground)} serviços: {loaded_service_names} ---")

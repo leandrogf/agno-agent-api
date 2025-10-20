@@ -1,0 +1,35 @@
+# agent-api/requirements_minimal.txt
+
+# Framework Principal
+agno>=2.1.8
+fastapi
+uvicorn[standard] # Inclui dependências padrão da web
+
+# Banco de Dados e Vetorização
+sqlalchemy>=2.0 # SQLAlchemy v2 ou superior
+psycopg-binary # Driver Postgres v3 (binário)
+pyodbc # Driver SQL Server
+lancedb # Banco Vetorial
+
+# IA do Google (Gemini)
+google-generativeai # Deixar o Agno/pip escolher a versão compatível
+
+# Utilitários Essenciais
+python-dotenv
+pydantic>=2.0 # Pydantic v2 ou superior
+pydantic-settings
+
+# ----- Dependências Opcionais/Exemplos -----
+# Mantenha apenas o que você realmente usa. Remova/comente o resto.
+# pandas
+# numpy
+# yfinance
+# beautifulsoup4
+# requests
+# openai # Se for usar modelos OpenAI também
+# duckduckgo-search # Ferramenta de busca
+# email-validator # Para validação de email
+# lxml # Parser HTML/XML
+# Jinja2 # Template engine
+# GitPython # Para interagir com Git
+python-dotenv

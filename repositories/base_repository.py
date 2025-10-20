@@ -1,8 +1,14 @@
 # agent-api/repositories/base_repository.py
 
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text, exc
 from typing import List, Dict, Any, Optional
+
+# Carrega o arquivo .env do diretório pai
+env_path = Path(__file__).parent.parent.parent / '.env'
+load_dotenv(env_path)
 
 class BaseRepository:
     """

@@ -47,12 +47,13 @@ class KnowledgeRegistry:
         Lê as configurações do ambiente e do vector_knowledge_builder.
         """
 
-        embedder = GeminiEmbedder(id=definitions.EmbedderModelId)
+        embedder = GeminiEmbedder(id=definitions["EmbedderModelId"])
         vector_db = LanceDb(
-            uri=definitions.VectorDbPath,
-            table_name=definitions.VectorTableName
+            uri=definitions["VectorDbPath"],
+            table_name=definitions["VectorTableName"],
+            embedder=embedder
         )
-        kb = Knowledge(vector_db=vector_db, embedder=embedder)
+        kb = Knowledge(vector_db=vector_db)
         return kb
 
     def get_kb(self, name: str) -> Knowledge:

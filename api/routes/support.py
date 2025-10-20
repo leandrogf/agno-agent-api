@@ -9,7 +9,7 @@ from typing import AsyncGenerator, List, Optional, Union, Dict, Any
 # Importações do Agno
 from agno.agent import Agent
 from agno.team import Team
-from agno.schema import AgentRun # Para tipagem da resposta não-stream
+# from agno.schema import AgentRun # Para tipagem da resposta não-stream - Temporariamente comentado
 
 # Importa nosso registro central de agentes e equipes
 from core.agent_registry import AGENT_REGISTRY
@@ -27,6 +27,23 @@ class ChatRequest(BaseModel):
     user_id: Optional[str] = Field(None, description="ID opcional para identificar o usuário.")
     # Adicione outros campos de configuração se necessário (ex: metadata)
     config: Optional[Dict[str, Any]] = Field(None, description="Configurações adicionais para a execução.")
+
+# --- Funções auxiliares ---
+
+def clean_markdown_json(content: str) -> str:
+    """
+    Remove formatação markdown de código JSON (```json\n...\n```) e retorna JSON limpo.
+    """
+    if isinstance(content, str):
+        # Remove blocos de código markdown JSON
+        content = content.strip()
+        if content.startswith('```json') and content.endswith('```'):
+            # Remove ```json no início e ``` no final
+            content = content[7:-3].strip()
+        elif content.startswith('```') and content.endswith('```'):
+            # Remove ``` genérico no início e final
+            content = content[3:-3].strip()
+    return content
 
 # --- Endpoints da API ---
 
@@ -46,35 +63,40 @@ async def chat_response_streamer(
 ) -> AsyncGenerator[str, None]:
     """
     Função geradora assíncrona para processar e retornar a resposta em stream (SSE).
-    Itera sobre os eventos retornados por `service.astream` ou `service.arun(stream=True)`.
+    Itera sobre os eventos retornados por `service.arun(stream=True)`.
     """
-    final_output = None
     stream_config = config or {} # Garante que config não seja None
 
     try:
-        # Usamos arun com stream=True, que retorna um AsyncIterator[AgentRun]
-        # (Presumindo que Team também suporte isso, como Agent faz)
-        async for agent_run in service.arun(message, stream=True, config=stream_config):
-            # Processa diferentes tipos de eventos se necessário (opcional)
-            # Ex: log de início/fim de agente, chamada de ferramenta, etc.
-            # print(f"STREAM EVENT: {agent_run.event_type} - {agent_run.agent_name}")
+        # Usamos arun com stream=True, que retorna um AsyncIterator de eventos
+        async for event in service.arun(message, stream=True, config=stream_config):
+            # Debug: vamos ver que tipo de evento e atributos estão disponíveis
+            print(f"STREAM EVENT TYPE: {type(event)}")
+            print(f"STREAM EVENT ATTRS: {dir(event)}")
 
-            # O evento final 'AgentRunCompleted' geralmente contém a saída completa
-            if agent_run.is_last:
-                final_output = agent_run.run_output
+            # Tenta acessar o conteúdo do evento de diferentes formas
+            if hasattr(event, 'content') and event.content:
+                content = event.content
+            elif hasattr(event, 'data') and event.data:
+                content = event.data
+            elif hasattr(event, 'message') and event.message:
+                content = event.message
+            else:
+                content = str(event)
 
-                # Se a saída for um objeto Pydantic (como ResolutionPlan), serializa
-                if isinstance(final_output, BaseModel):
-                    output_data = final_output.model_dump_json()
-                # Se for um dicionário (ex: saída JSON do N1 ou N2)
-                elif isinstance(final_output, dict):
-                     output_data = json.dumps(final_output, ensure_ascii=False)
-                # Se for texto simples (menos provável com nossa estrutura JSON)
-                else:
-                    output_data = str(final_output)
+            # Limpa formatação markdown se necessário
+            content = clean_markdown_json(str(content))
 
-                # Formato Server-Sent Events (SSE)
-                yield f"data: {output_data}\n\n"
+            # Tenta parsear como JSON se possível
+            try:
+                content_json = json.loads(content)
+                output_data = json.dumps(content_json, ensure_ascii=False)
+            except json.JSONDecodeError:
+                # Se não for JSON, retorna como texto
+                output_data = json.dumps({"content": content}, ensure_ascii=False)
+
+            # Formato Server-Sent Events (SSE)
+            yield f"data: {output_data}\n\n"
 
     except Exception as e:
         print(f"Erro durante o stream: {e}")
@@ -121,8 +143,29 @@ async def chat_with_service(service_id: str, body: ChatRequest):
         # Executa de forma síncrona (espera o resultado final)
         try:
             # Usamos arun com stream=False, que retorna o AgentRun final
-            agent_run: AgentRun = await service.arun(body.message, stream=False, config=config)
-            final_output = agent_run.run_output
+            agent_run: Any = await service.arun(body.message, stream=False, config=config)
+
+            # Para Team, pode ter estrutura diferente de Agent individual
+            if hasattr(agent_run, 'run_output'):
+                final_output = agent_run.run_output
+            elif hasattr(agent_run, 'content'):
+                final_output = agent_run.content
+            elif hasattr(agent_run, 'response'):
+                final_output = agent_run.response
+            else:
+                # Debug: vamos ver que atributos estão disponíveis
+                print(f"Atributos disponíveis em agent_run: {dir(agent_run)}")
+                final_output = str(agent_run)
+
+            # Limpa formatação markdown se for string
+            if isinstance(final_output, str):
+                final_output = clean_markdown_json(final_output)
+                # Tenta parsear como JSON se for string limpa
+                try:
+                    final_output = json.loads(final_output)
+                except json.JSONDecodeError:
+                    # Se não for JSON válido, mantém como string
+                    pass
 
             # Se a saída for um objeto Pydantic (como ResolutionPlan), retorna como dict
             if isinstance(final_output, BaseModel):

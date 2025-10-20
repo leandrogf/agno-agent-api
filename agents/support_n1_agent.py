@@ -48,7 +48,7 @@ n1_agent = Agent(
     description="Atendente Nível 1. Responde com RAG.",
     role="Atendente de Suporte Nível 1",
     instructions=n1_full_instructions,
-    llm=Gemini(id="gemini-1.5-flash"),
+    model=Gemini(id="gemini-2.0-flash"),
     knowledge=[sisateg_kb],
     tools=False,
     debug_mode=True,

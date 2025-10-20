@@ -32,8 +32,7 @@ knowledge_repo = KnowledgeRepository()
 
 # --- 3. Definição do Toolkit de Suporte ---
 support_toolkit = Toolkit(
-    name="support_toolkit",
-    description="Conjunto de ferramentas para os agentes de suporte (N1, N2, N3) usarem para diagnosticar e resolver chamados."
+    name="support_toolkit"
 )
 
 # ===================================================================
@@ -41,7 +40,7 @@ support_toolkit = Toolkit(
 # ===================================================================
 
 # --- Ferramenta 1 (Para Agente N3) ---
-@tool(toolkit=support_toolkit)
+@tool
 def get_knowledge_record_by_uuid(knowledge_id: UUID) -> str:
     """
     (PARA AGENTE N3) Use esta ferramenta quando precisar buscar os detalhes
@@ -64,7 +63,7 @@ def get_knowledge_record_by_uuid(knowledge_id: UUID) -> str:
 
 
 # --- Ferramenta 2 (Para Agente N2) ---
-@tool(toolkit=support_toolkit)
+@tool
 def get_ticket_dossier(ticket_id: int) -> str:
     """
     (PARA AGENTE N2) Use esta ferramenta quando precisar de todo o CONTEXTO
@@ -86,7 +85,7 @@ def get_ticket_dossier(ticket_id: int) -> str:
 
 
 # --- Ferramenta 3 (Para Agente N2) ---
-@tool(toolkit=support_toolkit)
+@tool
 def search_knowledge_by_keyword(search_terms: str) -> str:
     """
     (PARA AGENTE N2) Use esta ferramenta para fazer uma busca complementar por

@@ -55,7 +55,7 @@ triage_agent = Agent(
     description="Analisa e delega chamados para N1, N2 ou N3.",
     role="Coordenador de Suporte",
     instructions=triage_full_instructions,
-    llm=Gemini(id="gemini-1.5-flash"),
+    model=Gemini(id="gemini-2.0-flash"),
     knowledge=None,
     tools=False,
     debug_mode=True,

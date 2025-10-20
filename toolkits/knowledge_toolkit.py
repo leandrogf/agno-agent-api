@@ -27,15 +27,14 @@ log_repo = LogRepository()
 
 # --- Definição do Toolkit ---
 knowledge_toolkit = Toolkit(
-    name="knowledge_toolkit",
-    description="Conjunto de ferramentas para construir e consultar a base de conhecimento de chamados."
+    name="knowledge_toolkit"
 )
 
 # ====================================================================
 # FERRAMENTAS PARA WORKERS (BUILDERS - Time de Análise)
 # ====================================================================
 
-@tool(toolkit=knowledge_toolkit)
+@tool
 def get_unprocessed_tickets(limit: int = 100) -> List[int]:
     """
     (PARA WORKERS) Busca um lote de códigos de chamados encerrados que ainda não foram
@@ -44,7 +43,7 @@ def get_unprocessed_tickets(limit: int = 100) -> List[int]:
     print(f"EXECUTANDO FERRAMENTA (WORKER): get_unprocessed_tickets")
     return chamados_repo.get_unprocessed_tickets(limit=limit)
 
-@tool(toolkit=knowledge_toolkit)
+@tool
 def generate_dossiers_for_tickets(ticket_ids: List[int]) -> List[Dict[str, Any]]:
     """
     (PARA WORKERS) Gera os dossiês para uma lista de códigos de chamado.
@@ -56,7 +55,7 @@ def generate_dossiers_for_tickets(ticket_ids: List[int]) -> List[Dict[str, Any]]
 # FERRAMENTAS PARA AGENTES (CONSUMERS - Time de Atendimento)
 # ====================================================================
 
-@tool(toolkit=knowledge_toolkit)
+@tool
 def search_knowledge_base(query: str) -> List[Dict[str, Any]]:
     """
     (PARA AGENTES) Use esta ferramenta para pesquisar soluções para problemas
@@ -66,7 +65,7 @@ def search_knowledge_base(query: str) -> List[Dict[str, Any]]:
     print(f"EXECUTANDO FERRAMENTA (AGENTE): search_knowledge_base com a query: '{query}'")
     return knowledge_repo.search_full_text(search_query=query, limit=5)
 
-@tool(toolkit=knowledge_toolkit)
+@tool
 def get_knowledge_by_ticket_id(ticket_id: int) -> Optional[Dict[str, Any]]:
     """
     (PARA AGENTES) Use esta ferramenta se você precisar encontrar a solução
