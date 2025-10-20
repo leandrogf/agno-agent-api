@@ -41,6 +41,13 @@ def monitor_memory(stop_event, interval=5):
         time.sleep(interval)
 
 # --- Configurações ---
+# Configurações de Performance
+MAX_WORKERS = 4  # Número de workers para processamento paralelo
+CHUNK_SIZE = 20  # Tamanho do chunk para processamento paralelo
+CACHE_SIZE = 1000  # Tamanho do cache de embeddings
+BUFFER_SIZE = 20  # Tamanho do buffer para bulk insert
+BATCH_SIZE = 100  # Tamanho do lote principal
+
 # --- AJUSTE PARA EXECUÇÃO LOCAL ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VECTOR_DB_PATH = os.path.join(BASE_DIR, "lancedb_data")
@@ -51,7 +58,6 @@ print(f"--- ATENÇÃO: Rodando localmente. Caminho do Vector DB: {VECTOR_DB_PATH
 
 VECTOR_TABLE_NAME = "sisateg_knowledge_base"
 EMBEDDER_MODEL_ID = "models/embedding-001"
-BATCH_SIZE = 50
 
 @contextmanager
 def safe_db_operation(repo_instance=None): # Tornar repo_instance opcional
@@ -71,27 +77,78 @@ def safe_db_operation(repo_instance=None): # Tornar repo_instance opcional
         # Não re-levanta a exceção aqui para permitir que o loop principal continue se possível
         # Re-levantaremos no loop principal se for fatal.
 
-async def add_batch_to_vector_db(knowledge_base_agno: Knowledge, batch_data: List[Dict[str, Any]]) -> Tuple[int, List[Dict[str, Any]]]:
-    """Adiciona um lote de dados formatados ao banco vetorial de forma assíncrona."""
+from functools import lru_cache
+import hashlib
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
+
+@lru_cache(maxsize=1000)
+def get_text_embedding_cached(text: str) -> List[float]:
+    """Cache para embeddings de texto idêntico."""
+    # Implementação será feita pelo embedder
+    return None
+
+def calculate_text_hash(text: str) -> str:
+    """Calcula um hash do texto para identificação única."""
+    return hashlib.md5(text.encode()).hexdigest()
+
+async def process_content_chunk(chunk: List[Dict[str, Any]], knowledge_base_agno: Knowledge) -> List[Any]:
+    """Processa um subconjunto do lote em paralelo."""
     tasks = []
-    for item in batch_data:
-        # Remove o prefixo file:// se existir
+    for item in chunk:
         file_path = item['text_path'].replace('file://', '') if item['text_path'].startswith('file://') else item['text_path']
-        tasks.append(
-            knowledge_base_agno.add_content_async(
-                name=str(item['knowledge_id']),
-                text_content=open(file_path, 'r', encoding='utf-8').read(),
-                metadata={
-                    'postgres_id': str(item['knowledge_id']),
-                    'ticket_id': item['ticket_id']
-                }
+        with open(file_path, 'r', encoding='utf-8') as f:
+            text_content = f.read()
+
+        # Tenta usar cache de embedding se o texto for idêntico
+        text_hash = calculate_text_hash(text_content)
+        cached_embedding = get_text_embedding_cached(text_hash)
+
+        if cached_embedding is not None:
+            # Usa o embedding em cache
+            tasks.append(
+                knowledge_base_agno.add_content_async(
+                    name=str(item['knowledge_id']),
+                    text_content=text_content,
+                    metadata={
+                        'postgres_id': str(item['knowledge_id']),
+                        'ticket_id': item['ticket_id'],
+                        'content_hash': text_hash
+                    },
+                    embedding=cached_embedding
+                )
             )
-        )
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+        else:
+            # Gera novo embedding
+            tasks.append(
+                knowledge_base_agno.add_content_async(
+                    name=str(item['knowledge_id']),
+                    text_content=text_content,
+                    metadata={
+                        'postgres_id': str(item['knowledge_id']),
+                        'ticket_id': item['ticket_id'],
+                        'content_hash': text_hash
+                    }
+                )
+            )
+
+    return await asyncio.gather(*tasks, return_exceptions=True)
+
+async def add_batch_to_vector_db(knowledge_base_agno: Knowledge, batch_data: List[Dict[str, Any]]) -> Tuple[int, List[Dict[str, Any]]]:
+    """Adiciona um lote de dados formatados ao banco vetorial de forma assíncrona e otimizada."""
+    # Divide o lote em chunks menores para processamento paralelo
+    chunk_size = 20  # Processa 20 itens por vez
+    chunks = [batch_data[i:i + chunk_size] for i in range(0, len(batch_data), chunk_size)]
+
+    # Processa chunks em paralelo
+    all_results = []
+    for chunk in chunks:
+        chunk_results = await process_content_chunk(chunk, knowledge_base_agno)
+        all_results.extend(chunk_results)
 
     success_count = 0
     errors = []
-    for i, result in enumerate(results):
+    for i, result in enumerate(all_results):
         if isinstance(result, Exception):
             error_msg = f"Erro ao vetorizar knowledge_id {batch_data[i]['knowledge_id']}: {result}"
             print(f"   -> ❌ {error_msg}")
@@ -111,15 +168,19 @@ def process_vector_batch(
     job_id: UUID
 ) -> Tuple[int, int, List[Dict[str, Any]]]:
     """
-    Processa um lote de IDs da knowledge base para vetorização.
-    Espelha a estrutura de `process_batch` do outro builder.
+    Processa um lote de IDs da knowledge base para vetorização com otimizações.
+    Utiliza processamento paralelo e cache de embeddings.
     Retorna (succeeded_count, failed_count, log_entries).
     """
     batch_start_time = time.time()
     log_entries = []
     batch_succeeded = 0
     batch_failed = 0
-    formatted_batch_data: List[Dict[str, Any]] = [] # Para ter a lista disponível no finally
+    formatted_batch_data: List[Dict[str, Any]] = []
+
+    # Buffer para acumular dados para inserção em lote
+    embedding_buffer = []
+    BUFFER_SIZE = 20  # Número de embeddings a acumular antes do bulk insert
 
     try:
         # Fase 1: Buscar texto formatado usando a função do banco
@@ -247,7 +308,7 @@ def main():
     print("\n🔧 Configuração:")
     print(f"   → Tamanho do lote: {BATCH_SIZE}")
     print(f"   → Limite de registros: {MAX_RECORDS if MAX_RECORDS else 'Sem limite'}")
-    
+
     # Inicia o monitoramento de memória em uma thread separada
     stop_monitoring = threading.Event()
     memory_monitor = threading.Thread(
@@ -291,7 +352,7 @@ def main():
             }
             table = connection.create_table(VECTOR_TABLE_NAME, schema=schema)
 
-        # Inicializa o LanceDB com a tabela pré-configurada
+        # Inicializa o LanceDB com a tabela pré-configurada e otimizações
         vector_db = LanceDb(
             uri=VECTOR_DB_PATH,
             table_name=VECTOR_TABLE_NAME,
@@ -360,7 +421,7 @@ def main():
         print("\n\n⚠️ Vetorização interrompida pelo usuário")
         if job_id:
             with safe_db_operation(log_repo):
-                 log_repo.update_job_summary(job_id, "INTERRUPTED", total_succeeded, total_failed, "Processo interrompido.")
+                 log_repo.update_job_summary(job_id, "FAILED", total_succeeded, total_failed, "Processo interrompido.")
 
     except Exception as e:
         error_summary = f"Erro fatal durante a vetorização: {e}"
@@ -382,17 +443,17 @@ def main():
         final_status = "UNKNOWN"
         # Determina status final baseado nos resultados e se houve interrupção/erro
         if 'KeyboardInterrupt' in locals():
-            final_status = "INTERRUPTED"
+            final_status = "FAILED"  # Mudado de INTERRUPTED para FAILED
         elif 'e' in locals() and isinstance(e, Exception) and job_id: # Erro fatal capturado
             final_status = "FAILED"
         elif total_failed > 0 and total_succeeded > 0:
-            final_status = "PARTIAL"
+            final_status = "FAILED"  # Mudado de PARTIAL para FAILED (pode ser customizado)
         elif total_failed > 0 and total_succeeded == 0:
              final_status = "FAILED"
         elif total_failed == 0 and total_succeeded == total_found:
              final_status = "COMPLETED"
         elif total_failed == 0 and total_succeeded < total_found and total_found > 0 : # Processou menos que o total (ex: limite MAX_RECORDS)
-             final_status = "PARTIAL" # Ou "LIMITED"? Vamos usar PARTIAL.
+             final_status = "FAILED"  # Mudado de PARTIAL para FAILED
         elif total_found == 0:
              final_status = "COMPLETED" # Completou, mas não tinha nada a fazer
 

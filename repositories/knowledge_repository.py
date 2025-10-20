@@ -1,7 +1,7 @@
 # agent-api/repositories/knowledge_repository.py
 
 from .base_repository import BaseRepository
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from uuid import UUID
 class KnowledgeRepository(BaseRepository):
     """
@@ -96,3 +96,51 @@ class KnowledgeRepository(BaseRepository):
             }
             for row in results
         ]
+
+    # --- NOVO MÉTODO (para Ferramenta N3) ---
+    def find_by_id(self, record_id: UUID) -> Optional[Dict[str, Any]]:
+        """
+        Busca um único registro de conhecimento pelo seu ID (UUID).
+        """
+        query = """
+            SELECT * FROM public.ybs_knowledge_base
+            WHERE id = :record_id
+            LIMIT 1;
+        """
+        params = {"record_id": record_id}
+        results = self.execute(query, params)
+        return results[0] if results else None
+
+    # --- NOVO MÉTODO (para Ferramenta N2) ---
+    def search_by_keyword(self, search_terms: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Busca na base de conhecimento usando Full-Text Search do Postgres.
+        'search_terms' deve ser uma string com palavras-chave, ex: "relatorio sincronizacao"
+        """
+        # Converte "relatorio sincronizacao" para "relatorio & sincronizacao"
+        # que é o formato que to_tsquery espera para "E" (AND)
+        formatted_terms = " & ".join(search_terms.split())
+
+        query = """
+            SELECT
+                id,
+                ticket_id,
+                title,
+                problem_summary,
+                solution_applied,
+                solution_type,
+                ts_rank_cd(
+                    to_tsvector('portuguese', title || ' ' || problem_summary || ' ' || solution_applied),
+                    to_tsquery('portuguese', :terms)
+                ) AS rank
+            FROM
+                public.ybs_knowledge_base
+            WHERE
+                to_tsvector('portuguese', title || ' ' || problem_summary || ' ' || solution_applied) @@ to_tsquery('portuguese', :terms)
+            ORDER BY
+                rank DESC
+            LIMIT :limit;
+        """
+        params = {"terms": formatted_terms, "limit": limit}
+        results = self.execute(query, params)
+        return results
